@@ -14,6 +14,21 @@ authors.workspace = true
 [lints]
 workspace = true
 
+[features]
+# RDF/OWL parsing (RdfLibOntologyResolver + loader/builder/manager) via the
+# sophia stack. Default-on for drop-in parity with the pre-feature crate.
+# Embedders that only need the trait + NoOpOntologyResolver disable it to
+# keep sophia (CECILL-B licensed) out of their dependency graph entirely.
+default = ["rdf"]
+rdf = [
+    "dep:sophia",
+    "dep:sophia_api",
+    "dep:sophia_inmem",
+    "dep:sophia_turtle",
+    "dep:sophia_xml",
+    "dep:sophia_jsonld",
+]
+
 [dependencies]
 cognee-models = { path = "../models", version = "0.1.3" }
 
@@ -25,13 +40,13 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 
-# RDF/OWL parsing and graph operations
-sophia = { workspace = true }
-sophia_api = { workspace = true }
-sophia_inmem = { workspace = true }
-sophia_turtle = { workspace = true }
-sophia_xml = { workspace = true }
-sophia_jsonld = { workspace = true }
+# RDF/OWL parsing and graph operations (feature `rdf`, default-on)
+sophia = { workspace = true, optional = true }
+sophia_api = { workspace = true, optional = true }
+sophia_inmem = { workspace = true, optional = true }
+sophia_turtle = { workspace = true, optional = true }
+sophia_xml = { workspace = true, optional = true }
+sophia_jsonld = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

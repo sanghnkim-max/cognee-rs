@@ -65,21 +65,28 @@
 //! let result = cognify(data_items, dataset_id, llm, storage, graph_db, vector_db, embedding_engine, &config).await?;
 //! ```
 
+#[cfg(feature = "rdf")]
 pub mod builder;
 pub mod error;
+#[cfg(feature = "rdf")]
 pub mod loader;
+#[cfg(feature = "rdf")]
 pub mod manager;
 pub mod matching;
 pub mod models;
 pub mod noop;
+#[cfg(feature = "rdf")]
 pub mod rdflib;
 pub mod traits;
 
 pub use error::{OntologyError, OntologyResult};
+#[cfg(feature = "rdf")]
 pub use loader::OntologyFileInput;
+#[cfg(feature = "rdf")]
 pub use manager::{OntologyManager, OntologyMetadata};
 pub use matching::{FuzzyMatchingStrategy, MatchingStrategy};
 pub use models::{AttachedOntologyNode, NodeCategory, OntologyLookup, uri_to_key};
 pub use noop::NoOpOntologyResolver;
+#[cfg(feature = "rdf")]
 pub use rdflib::RdfLibOntologyResolver;
 pub use traits::OntologyResolver;

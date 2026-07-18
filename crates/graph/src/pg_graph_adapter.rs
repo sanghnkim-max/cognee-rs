@@ -16,13 +16,12 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sea_orm::sea_query::{Alias, Cond, Expr, Iden, OnConflict, Query};
+use sea_orm::sea_query::{Alias, Cond, Expr, Iden, OnConflict, Query, ExprTrait};
 use sea_orm::{ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement};
 use sea_orm_migration::MigratorTrait;
 use serde_json::{Value, json};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 use tracing::debug;
 
 use crate::error::{GraphDBError, GraphDBResult};
@@ -52,25 +51,18 @@ enum GNode {
 }
 
 impl Iden for GNode {
-    #[allow(
-        clippy::expect_used,
-        reason = "writing a static &str into the fmt::Write sink is infallible"
-    )]
-    fn unquoted(&self, s: &mut dyn fmt::Write) {
-        write!(
-            s,
-            "{}",
-            match self {
-                Self::Table => "graph_node",
-                Self::Id => "id",
-                Self::Name => "name",
-                Self::Type => "type",
-                Self::Properties => "properties",
-                Self::CreatedAt => "created_at",
-                Self::UpdatedAt => "updated_at",
-            }
-        )
-        .expect("write to string cannot fail");
+    // sea-query 1.0: `Iden::unquoted` returns the identifier instead of
+    // writing into a sink.
+    fn unquoted(&self) -> &str {
+        match self {
+            Self::Table => "graph_node",
+            Self::Id => "id",
+            Self::Name => "name",
+            Self::Type => "type",
+            Self::Properties => "properties",
+            Self::CreatedAt => "created_at",
+            Self::UpdatedAt => "updated_at",
+        }
     }
 }
 
@@ -86,25 +78,18 @@ enum GEdge {
 }
 
 impl Iden for GEdge {
-    #[allow(
-        clippy::expect_used,
-        reason = "writing a static &str into the fmt::Write sink is infallible"
-    )]
-    fn unquoted(&self, s: &mut dyn fmt::Write) {
-        write!(
-            s,
-            "{}",
-            match self {
-                Self::Table => "graph_edge",
-                Self::SourceId => "source_id",
-                Self::TargetId => "target_id",
-                Self::RelationshipName => "relationship_name",
-                Self::Properties => "properties",
-                Self::CreatedAt => "created_at",
-                Self::UpdatedAt => "updated_at",
-            }
-        )
-        .expect("write to string cannot fail");
+    // sea-query 1.0: `Iden::unquoted` returns the identifier instead of
+    // writing into a sink.
+    fn unquoted(&self) -> &str {
+        match self {
+            Self::Table => "graph_edge",
+            Self::SourceId => "source_id",
+            Self::TargetId => "target_id",
+            Self::RelationshipName => "relationship_name",
+            Self::Properties => "properties",
+            Self::CreatedAt => "created_at",
+            Self::UpdatedAt => "updated_at",
+        }
     }
 }
 
@@ -358,7 +343,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let row = self
             .db
-            .query_one(self.build(&query))
+            .query_one_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 
@@ -402,7 +387,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let row = self
             .db
-            .query_one(self.build(&query))
+            .query_one_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 
@@ -466,7 +451,7 @@ impl GraphDBTrait for PgGraphAdapter {
             );
 
             self.db
-                .execute(self.build(&insert))
+                .execute_raw(self.build(&insert))
                 .await
                 .map_err(|e| GraphDBError::NodeError(format!("Failed to upsert nodes: {e}")))?;
         }
@@ -481,7 +466,7 @@ impl GraphDBTrait for PgGraphAdapter {
             .to_owned();
 
         self.db
-            .execute(self.build(&query))
+            .execute_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::NodeError(format!("Failed to delete node: {e}")))?;
         Ok(())
@@ -498,7 +483,7 @@ impl GraphDBTrait for PgGraphAdapter {
             .to_owned();
 
         self.db
-            .execute(self.build(&query))
+            .execute_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::NodeError(format!("Failed to delete nodes: {e}")))?;
         Ok(())
@@ -513,7 +498,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let row = self
             .db
-            .query_one(self.build(&query))
+            .query_one_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 
@@ -536,7 +521,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let rows = self
             .db
-            .query_all(self.build(&query))
+            .query_all_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 
@@ -565,7 +550,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let row = self
             .db
-            .query_one(self.build(&query))
+            .query_one_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 
@@ -702,7 +687,7 @@ impl GraphDBTrait for PgGraphAdapter {
             );
 
             self.db
-                .execute(self.build(&insert))
+                .execute_raw(self.build(&insert))
                 .await
                 .map_err(|e| GraphDBError::EdgeError(format!("Failed to upsert edges: {e}")))?;
         }
@@ -727,7 +712,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let rows = self
             .db
-            .query_all(self.build(&query))
+            .query_all_raw(self.build(&query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 
@@ -838,7 +823,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let node_rows = self
             .db
-            .query_all(self.build(&node_query))
+            .query_all_raw(self.build(&node_query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 
@@ -866,7 +851,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let edge_rows = self
             .db
-            .query_all(self.build(&edge_query))
+            .query_all_raw(self.build(&edge_query))
             .await
             .map_err(|e| GraphDBError::QueryError(e.to_string()))?;
 

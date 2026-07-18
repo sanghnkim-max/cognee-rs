@@ -6,12 +6,12 @@
 
 use async_trait::async_trait;
 use sea_orm::sea_query::{
-    Alias, Asterisk, Expr, Func, Iden, OnConflict, Order, PostgresQueryBuilder, Query, Table,
+    Alias, Asterisk, Expr, ExprTrait, Func, Iden, OnConflict, Order, PostgresQueryBuilder, Query,
+    Table,
 };
 use sea_orm::{ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement};
 use sea_orm_migration::MigratorTrait;
 use std::collections::HashMap;
-use std::fmt;
 use tracing::{Span, debug, instrument};
 use uuid::Uuid;
 
@@ -40,23 +40,16 @@ enum VColl {
 }
 
 impl Iden for VColl {
-    #[allow(
-        clippy::expect_used,
-        reason = "writing a static &str into the fmt::Write sink is infallible"
-    )]
-    fn unquoted(&self, s: &mut dyn fmt::Write) {
-        write!(
-            s,
-            "{}",
-            match self {
-                Self::Table => "_vector_collections",
-                Self::CollectionName => "collection_name",
-                Self::DataType => "data_type",
-                Self::FieldName => "field_name",
-                Self::Dimension => "dimension",
-            }
-        )
-        .expect("write to string cannot fail");
+    // sea-query 1.0: `Iden::unquoted` returns the identifier instead of
+    // writing into a sink.
+    fn unquoted(&self) -> &str {
+        match self {
+            Self::Table => "_vector_collections",
+            Self::CollectionName => "collection_name",
+            Self::DataType => "data_type",
+            Self::FieldName => "field_name",
+            Self::Dimension => "dimension",
+        }
     }
 }
 
@@ -309,7 +302,7 @@ impl VectorDB for PgVectorAdapter {
             .to_owned();
 
         self.db
-            .execute(self.build(&insert))
+            .execute_raw(self.build(&insert))
             .await
             .map_err(|e| VectorDBError::StorageError(e.to_string()))?;
 
@@ -332,7 +325,7 @@ impl VectorDB for PgVectorAdapter {
 
         let row = self
             .db
-            .query_one(self.build(&query))
+            .query_one_raw(self.build(&query))
             .await
             .map_err(|e| VectorDBError::StorageError(e.to_string()))?;
 
@@ -602,7 +595,7 @@ impl VectorDB for PgVectorAdapter {
             .to_owned();
 
         self.db
-            .execute(self.build(&delete))
+            .execute_raw(self.build(&delete))
             .await
             .map_err(|e| VectorDBError::StorageError(e.to_string()))?;
 
@@ -642,7 +635,7 @@ impl VectorDB for PgVectorAdapter {
             .to_owned();
 
         self.db
-            .execute(self.build(&query))
+            .execute_raw(self.build(&query))
             .await
             .map_err(|e| VectorDBError::StorageError(e.to_string()))?;
 
@@ -660,7 +653,7 @@ impl VectorDB for PgVectorAdapter {
 
         let row = self
             .db
-            .query_one(self.build(&query))
+            .query_one_raw(self.build(&query))
             .await
             .map_err(|e| VectorDBError::StorageError(e.to_string()))?;
 
@@ -684,7 +677,7 @@ impl VectorDB for PgVectorAdapter {
 
         let rows = self
             .db
-            .query_all(self.build(&query))
+            .query_all_raw(self.build(&query))
             .await
             .map_err(|e| VectorDBError::StorageError(e.to_string()))?;
 
