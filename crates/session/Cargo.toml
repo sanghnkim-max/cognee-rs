@@ -36,8 +36,8 @@ serde_json.workspace = true
 tokio.workspace = true
 
 # sea-orm backend (feature-gated)
-sea-orm = { version = "1.1", features = ["sqlx-sqlite", "sqlx-postgres", "runtime-tokio-rustls", "with-chrono"], optional = true }
-sea-orm-migration = { version = "1.1", features = ["runtime-tokio-rustls"], optional = true }
+sea-orm = { version = "2.0.0-rc", features = ["sqlx-sqlite", "sqlx-postgres", "runtime-tokio-rustls", "with-chrono"], optional = true }
+sea-orm-migration = { version = "2.0.0-rc", features = ["runtime-tokio-rustls"], optional = true }
 
 # redis backend (feature-gated)
 redis = { version = "0.29", features = ["aio", "tokio-comp", "connection-manager"], optional = true }

@@ -211,7 +211,7 @@ impl PgVectorAdapter {
         let values: Vec<sea_orm::Value> = points.iter().map(|p| p.id.into()).collect();
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 &sql,
                 values,
@@ -436,7 +436,7 @@ impl VectorDB for PgVectorAdapter {
             );
 
             self.db
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DatabaseBackend::Postgres,
                     &sql,
                     values,
@@ -483,7 +483,7 @@ impl VectorDB for PgVectorAdapter {
 
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 &sql,
                 [vec_str.into(), (top_k as i64).into()],
@@ -549,7 +549,7 @@ impl VectorDB for PgVectorAdapter {
 
         let rows = self
             .db
-            .query_all(Statement::from_string(DatabaseBackend::Postgres, sql))
+            .query_all_raw(Statement::from_string(DatabaseBackend::Postgres, sql))
             .await
             .map_err(|e| VectorDBError::StorageError(e.to_string()))?;
 
@@ -854,7 +854,7 @@ mod shared_db_migration_tests {
             "DROP TABLE IF EXISTS seaql_migrations CASCADE",
             "DROP TABLE IF EXISTS seaql_migrations_pgvector CASCADE",
         ] {
-            db.execute(Statement::from_string(db.get_database_backend(), stmt))
+            db.execute_raw(Statement::from_string(db.get_database_backend(), stmt))
                 .await
                 .unwrap();
         }
@@ -866,7 +866,7 @@ mod shared_db_migration_tests {
     /// interpolating it carries no injection risk).
     async fn version_count(db: &DatabaseConnection, table: &str) -> i64 {
         let exists = db
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 db.get_database_backend(),
                 format!("SELECT to_regclass('{table}') IS NOT NULL AS present"),
             ))
@@ -878,7 +878,7 @@ mod shared_db_migration_tests {
             return 0;
         }
         let row = db
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 db.get_database_backend(),
                 format!("SELECT count(*) AS c FROM {table}"),
             ))
@@ -942,13 +942,13 @@ mod shared_db_migration_tests {
 
         // Simulate an older build that recorded the pgvector version into the
         // DEFAULT `seaql_migrations` table (aux-ran-before-core ordering).
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             db.get_database_backend(),
             "CREATE TABLE seaql_migrations (version VARCHAR PRIMARY KEY, applied_at BIGINT NOT NULL)",
         ))
         .await
         .unwrap();
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             db.get_database_backend(),
             "INSERT INTO seaql_migrations (version, applied_at) \
              VALUES ('m20250101_000001_create_pgvector_extension', 0)",

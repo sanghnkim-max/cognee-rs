@@ -31,7 +31,7 @@ chrono.workspace = true
 lbug = { workspace = true, optional = true }
 
 # PostgreSQL graph (feature-gated)
-sea-orm = { version = "1.1", features = [
+sea-orm = { version = "2.0.0-rc", features = [
     "runtime-tokio-rustls",
     "sqlx-postgres",
     "with-chrono",
@@ -40,7 +40,7 @@ sea-orm = { version = "1.1", features = [
     # used by `has_edges` to batch-check edges in a single `unnest(...)` query.
     "postgres-array",
 ], optional = true }
-sea-orm-migration = { version = "1.1", features = [
+sea-orm-migration = { version = "2.0.0-rc", features = [
     "runtime-tokio-rustls",
 ], optional = true }
 

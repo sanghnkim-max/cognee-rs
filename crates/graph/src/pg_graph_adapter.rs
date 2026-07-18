@@ -595,7 +595,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 "SELECT v.s, v.t, v.r \
                  FROM unnest($1::text[], $2::text[], $3::text[]) AS v(s, t, r) \
@@ -743,7 +743,7 @@ impl GraphDBTrait for PgGraphAdapter {
     async fn get_neighbors(&self, node_id: &str) -> GraphDBResult<Vec<NodeData>> {
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 "SELECT DISTINCT m.id, m.name, m.type, m.properties \
                  FROM graph_edge e \
@@ -766,7 +766,7 @@ impl GraphDBTrait for PgGraphAdapter {
     ) -> GraphDBResult<Vec<(NodeData, HashMap<Cow<'static, str>, Value>, NodeData)>> {
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 "SELECT \
                      n.id AS src_id, n.name AS src_name, n.type AS src_type, n.properties AS src_props, \
@@ -887,7 +887,7 @@ impl GraphDBTrait for PgGraphAdapter {
         // Node count
         let n_row = self
             .db
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 DatabaseBackend::Postgres,
                 "SELECT count(*) AS cnt FROM graph_node".to_string(),
             ))
@@ -901,7 +901,7 @@ impl GraphDBTrait for PgGraphAdapter {
         // Edge count
         let e_row = self
             .db
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 DatabaseBackend::Postgres,
                 "SELECT count(*) AS cnt FROM graph_edge".to_string(),
             ))
@@ -932,7 +932,7 @@ impl GraphDBTrait for PgGraphAdapter {
         // Connected components via recursive CTE (raw SQL — not expressible in sea_query)
         let comp_rows = self
             .db
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Postgres,
                 "WITH RECURSIVE component AS ( \
                      SELECT id AS node_id, id AS comp_root FROM graph_node \
@@ -972,7 +972,7 @@ impl GraphDBTrait for PgGraphAdapter {
         if include_optional {
             let sl_row = self
                 .db
-                .query_one(Statement::from_string(
+                .query_one_raw(Statement::from_string(
                     DatabaseBackend::Postgres,
                     "SELECT count(*) AS cnt FROM graph_edge WHERE source_id = target_id"
                         .to_string(),
@@ -1052,7 +1052,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 &sql,
                 values,
@@ -1169,7 +1169,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 &sql,
                 values,
@@ -1229,7 +1229,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let node_rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 &node_sql,
                 values.clone(),
@@ -1250,7 +1250,7 @@ impl GraphDBTrait for PgGraphAdapter {
 
         let edge_rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 &edge_sql,
                 values,
@@ -1451,7 +1451,7 @@ mod shared_db_migration_tests {
             "DROP TABLE IF EXISTS seaql_migrations CASCADE",
             "DROP TABLE IF EXISTS seaql_migrations_pggraph CASCADE",
         ] {
-            db.execute(Statement::from_string(db.get_database_backend(), stmt))
+            db.execute_raw(Statement::from_string(db.get_database_backend(), stmt))
                 .await
                 .unwrap();
         }
@@ -1463,7 +1463,7 @@ mod shared_db_migration_tests {
     /// interpolating it carries no injection risk).
     async fn version_count(db: &DatabaseConnection, table: &str) -> i64 {
         let exists = db
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 db.get_database_backend(),
                 format!("SELECT to_regclass('{table}') IS NOT NULL AS present"),
             ))
@@ -1475,7 +1475,7 @@ mod shared_db_migration_tests {
             return 0;
         }
         let row = db
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 db.get_database_backend(),
                 format!("SELECT count(*) AS c FROM {table}"),
             ))
@@ -1539,13 +1539,13 @@ mod shared_db_migration_tests {
 
         // Simulate an older build that recorded the graph version into the
         // DEFAULT `seaql_migrations` table (aux-ran-before-core ordering).
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             db.get_database_backend(),
             "CREATE TABLE seaql_migrations (version VARCHAR PRIMARY KEY, applied_at BIGINT NOT NULL)",
         ))
         .await
         .unwrap();
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             db.get_database_backend(),
             "INSERT INTO seaql_migrations (version, applied_at) \
              VALUES ('m20250101_000001_create_graph_tables', 0)",

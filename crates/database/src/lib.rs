@@ -25,11 +25,14 @@ pub use connection::{connect, initialize};
 /// (`cognee/modules/observability/tracing.py`) and the
 /// `cognee.db.system` attribute exposed by every relational op span.
 pub fn database_system_label(db: &sea_orm::DatabaseConnection) -> &'static str {
-    use sea_orm::{ConnectionTrait, DatabaseBackend};
+    use sea_orm::DatabaseBackend;
     match db.get_database_backend() {
         DatabaseBackend::Sqlite => "sqlite",
         DatabaseBackend::Postgres => "postgres",
         DatabaseBackend::MySql => "mysql",
+        // sea-orm 2.0 marked DbBackend #[non_exhaustive]; new engines land
+        // here until a label is added.
+        _ => "unknown",
     }
 }
 pub use ops::checkpoint::{CheckpointStore, SeaOrmCheckpointStore};

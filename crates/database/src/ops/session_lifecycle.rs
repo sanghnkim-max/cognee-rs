@@ -135,14 +135,14 @@ pub async fn ensure_and_touch_session(
                 dataset_id = COALESCE(session_records.dataset_id, $3) \
              WHERE session_records.status = 'running'"
         }
-        DatabaseBackend::MySql => {
+        _ => {
             return Err(DatabaseError::QueryError(
-                "ensure_and_touch_session: MySQL backend not supported".to_string(),
+                "ensure_and_touch_session: unsupported database backend (only sqlite/postgres)".to_string(),
             ));
         }
     };
 
-    db.execute(Statement::from_sql_and_values(
+    db.execute_raw(Statement::from_sql_and_values(
         backend,
         sql,
         [
@@ -279,7 +279,7 @@ pub async fn accumulate_usage(
         );
         let _ = next_idx;
 
-        db.execute(Statement::from_sql_and_values(backend, sql, params))
+        db.execute_raw(Statement::from_sql_and_values(backend, sql, params))
             .await
             .map_err(map_sea_err)?;
     }
@@ -311,14 +311,14 @@ pub async fn accumulate_usage(
                     cost_usd = session_model_usage.cost_usd + $6, \
                     updated_at = $7"
             }
-            DatabaseBackend::MySql => {
+            _ => {
                 return Err(DatabaseError::QueryError(
-                    "accumulate_usage: MySQL backend not supported".to_string(),
+                    "accumulate_usage: unsupported database backend (only sqlite/postgres)".to_string(),
                 ));
             }
         };
 
-        db.execute(Statement::from_sql_and_values(
+        db.execute_raw(Statement::from_sql_and_values(
             backend,
             sql,
             [
