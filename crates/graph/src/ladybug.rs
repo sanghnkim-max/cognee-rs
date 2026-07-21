@@ -28,6 +28,26 @@ fn read_max_db_size() -> u64 {
         .unwrap_or(DEFAULT_MAX_DB_SIZE)
 }
 
+/// Default buffer-pool (in-RAM page cache) size: 256 MiB.
+///
+/// Kuzu's built-in default (SystemConfig `buffer_pool_size: 0`) is ~80% of
+/// PHYSICAL RAM. For a personal knowledge-graph/memory workload that is wildly
+/// oversized, and on a high-RAM host it makes `Database::new` block for MINUTES
+/// eagerly reserving/faulting the arena (~270s for ~25 GiB on a CI runner;
+/// sub-second on a low-RAM laptop, which is why it was invisible in local dev).
+/// The buffer pool is only a CACHE — it does not cap graph size (that is
+/// `max_db_size`) — so a bounded default just trades a little cache for a fast,
+/// predictable open. 256 MiB is ample for typical graphs; override with
+/// `GRAPH_BUFFER_POOL_SIZE` (bytes) for very large graphs / query-heavy hosts.
+const DEFAULT_BUFFER_POOL_SIZE: u64 = 256 * 1024 * 1024;
+
+fn read_buffer_pool_size() -> u64 {
+    std::env::var("GRAPH_BUFFER_POOL_SIZE")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_BUFFER_POOL_SIZE)
+}
+
 use crate::{EdgeData, GraphDBError, GraphDBResult, GraphDBTrait, GraphNode, NodeData};
 
 /// Strip control characters (`\u{0000}`–`\u{001F}`, except `\t`, `\n`, `\r`)
@@ -165,7 +185,9 @@ impl LadybugAdapter {
     /// Returns GraphDBError::InitializationError if database creation fails
     ///
     pub async fn new(db_path: &str) -> GraphDBResult<Self> {
-        let config = SystemConfig::default().max_db_size(read_max_db_size());
+        let config = SystemConfig::default()
+            .max_db_size(read_max_db_size())
+            .buffer_pool_size(read_buffer_pool_size());
         let db = Database::new(db_path, config).map_err(|e| {
             GraphDBError::InitializationError(format!("Failed to create database: {e}"))
         })?;
@@ -1708,7 +1730,9 @@ mod tests {
     async fn ladybug_supports_idempotent_unwind_merge_batch() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("merge.db");
-        let config = SystemConfig::default().max_db_size(read_max_db_size());
+        let config = SystemConfig::default()
+            .max_db_size(read_max_db_size())
+            .buffer_pool_size(read_buffer_pool_size());
         let db = Database::new(db_path.to_str().unwrap(), config).unwrap();
         let conn = Connection::new(&db).unwrap();
         conn.query(
